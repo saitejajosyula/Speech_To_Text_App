@@ -23,6 +23,7 @@ def start():
         audio = r.record(source)
     try:
         return r.recognize_google(audio)
+        # return r.recognize_sphinx(audio)
     except sr.UnknownValueError:
         print("Google Speech Recognition could not understand audio")
     except sr.RequestError as e:
