@@ -86,8 +86,6 @@ stevedore==1.32.0
 threadpoolctl==2.1.0
 toml==0.10.2
 tornado==6.0.4
-traitlets==5.0.5
-tzlocal==2.1
 urllib3==1.26.3
 Wave==0.0.2
 wavio==0.0.4
