@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Voice Controlled Notes App</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shoelace-css/1.0.0-beta16/shoelace.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/style.css') }}">
+
+
+</head>
+
+<body>
+    <div class="container">
+
+        <h1>Voice Controlled Notes App</h1>
+
+        <div class="app">
+            <div class="container">
+                <h3 class="text-center" id="hide" style="display:none"> Processing Text....</h3>
+                <textarea class="w-100" id="displayText" placeholder="Create a new note by typing or using voice recognition." rows="6" spellcheck="true" style="height : 300px;width:80%;margin-left: auto;margin-right: auto;"> </textarea>
+            </div>
+
+            <div class="controls">
+                <button type="button" class="btn btn-primary btn-lg mt-3" id="mic">Get Microphone</button>
+                <button type="button" class="btn btn-primary btn-lg mt-3" id="record" hidden>Record</button>
+                <button id="save-note-btn" class="btn btn-primary btn-lg mt-3" title="Save Note">Save Note</button>
+            </div>
+
+
+            <h3>My Notes</h3>
+            <div class="mynote"></div>
+            <ul id="notes">
+                <li>
+                    <p class="no-notes">You don't have any notes.</p>
+                </li>
+            </ul>
+
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script>
+        var noteTextarea = $('#displayText');
+        var notesList = $('ul#notes');
+
+        var notes = getAllNotes();
+        renderNotes(notes);
+
+        function processing(output) {
+            if (output) {
+                document.getElementById("hide").style.display = "none";
+            } else {
+                document.getElementById("hide").style.display = "block";
+            }
+
+        }
+
+
+
+
+        $("document").ready(function() {
+
+            const getMic = document.getElementById('mic');
+            const recordButton = document.getElementById('record');
+
+
+            if ('MediaRecorder' in window) {
+                getMic.addEventListener('click', async() => {
+                    getMic.setAttribute('hidden', 'hidden');
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            audio: true,
+                            video: false
+                        });
+                        const mimeType = 'audio/wav';
+                        let chunks = [];
+                        const recorder = new MediaRecorder(stream, {
+                            type: mimeType
+                        });
+                        recorder.addEventListener('dataavailable', event => {
+                            if (typeof event.data === 'undefined') return;
+                            if (event.data.size === 0) return;
+                            chunks.push(event.data);
+                        });
+                        recorder.addEventListener('stop', () => {
+                            const recording = new Blob(chunks, {
+                                type: mimeType
+                            });
+                            renderRecording(recording);
+                            chunks = []
+                        });
+                        recordButton.removeAttribute('hidden');
+                        recordButton.addEventListener('click', () => {
+                            if (recorder.state === 'inactive') {
+                                recorder.start();
+                                recordButton.innerText = 'Stop';
+                            } else {
+                                recorder.stop();
+                                recordButton.innerText = 'Record';
+                                document.getElementById("hide").style.display = "block";
+                            }
+                        });
+
+                    } catch {
+                        renderError(
+                            'You denied access to the microphone so enable it and reload the page to work.'
+                        );
+                    }
+
+
+                });
+
+
+
+            } else {
+                renderError(
+                    "Sorry, your browser doesn't support this application."
+                );
+            }
+
+        });
+
+        $('#save-note-btn').on('click', function(e) {
+            var note = document.getElementById("displayText").value;
+
+            if (!note.length) {
+                alert('Could not save empty note. Please add a message to your note.');
+            } else {
+                // Save note to localStorage.
+                saveNote(new Date().toLocaleString(), note);
+
+                // Reset variables and update UI.
+                note = '';
+                renderNotes(getAllNotes());
+                noteTextarea.val('');
+                instructions.text('Note saved successfully.');
+            }
+
+        });
+
+        notesList.on('click', function(e) {
+            e.preventDefault();
+            var target = $(e.target);
+            //var note = $('#displayText').text();
+            // Listen to the selected note.
+            if (target.hasClass('listen-note')) {
+                var content = target.closest('.note').find('.content').text();
+                readOutLoud(content);
+            }
+
+            // Delete note.
+            if (target.hasClass('delete-note')) {
+                var dateTime = target.siblings('.date').text();
+                deleteNote(dateTime);
+                target.closest('.note').remove();
+            }
+        });
+
+
+        function readOutLoud(message) {
+            var speech = new SpeechSynthesisUtterance();
+
+            // Set the text and voice attributes.
+            speech.text = message;
+            speech.volume = 1;
+            speech.rate = 1;
+            speech.pitch = 1;
+
+            window.speechSynthesis.speak(speech);
+        }
+
+        function renderNotes(notes) {
+            var html = '';
+            if (notes.length) {
+                notes.forEach(function(note) {
+                    html += `<li class="note">
+        <p class="header">
+          <span class="date">${note.date}</span>
+          <a href="#" class="listen-note" title="Listen to Note">Listen to Note</a>
+          <a href="#" class="delete-note" title="Delete">Delete</a>
+        </p>
+        <p class="content">${note.content}</p>
+      </li>`;
+                });
+            } else {
+                html = '<li><p class="content">You don\'t have any notes yet.</p></li>';
+            }
+            notesList.html(html);
+        }
+
+        function saveNote(dateTime, content) {
+            localStorage.setItem('note-' + dateTime, content);
+        }
+
+
+        function getAllNotes() {
+            var notes = [];
+            var key;
+            for (var i = 0; i < localStorage.length; i++) {
+                key = localStorage.key(i);
+                console.log(i)
+                console.log(key)
+
+                if (key.substring(0, 5) == 'note-') {
+                    notes.push({
+                        date: key.replace('note-', ''),
+                        content: localStorage.getItem(localStorage.key(i))
+                    });
+                }
+            }
+            console.log(notes)
+            return notes;
+        }
+
+
+        function deleteNote(dateTime) {
+            localStorage.removeItem('note-' + dateTime);
+        }
+
+        function renderError(message) {
+            const main = document.querySelector('main');
+            main.innerHTML = `<div class="error"><p>${message}</p></div>`;
+        }
+
+        function renderRecording(blob) {
+            const blobUrl = URL.createObjectURL(blob);
+            const li = document.createElement('li');
+            const audio = document.createElement('audio');
+            const anchor = document.createElement('a');
+            anchor.setAttribute('href', blobUrl);
+            const now = new Date();
+            anchor.setAttribute(
+                'download',
+                `recording-${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDay().toString().padStart(2, '0')}--${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}-${now.getSeconds().toString().padStart(2, '0')}.webm`
+            );
+            anchor.innerText = 'Download';
+            audio.setAttribute('src', blobUrl);
+            audio.setAttribute('controls', 'controls');
+            li.appendChild(audio);
+            li.appendChild(anchor);
+
+            var xhr = new XMLHttpRequest();
+            var data = new FormData();
+            data.append("audio_data", blob);
+            xhr.open("POST", "/start", true);
+            xhr.send(data);
+            xhr.onload = function(e) {
+                if (this.readyState === 4) {
+                    console.log("Server returned: ", e.target.responseText);
+                    const output = e.target.responseText + ". ";
+                    document.getElementById("hide").style.display = "none";
+                    document.getElementById("displayText").value = document.getElementById("displayText").value + output;
+                }
+
+            };
+        }
+    </script>
+
+
+</body>
+
+</html>
