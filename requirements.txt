@@ -11,7 +11,7 @@ matplotlib
 numpy
 requests
 scipy
-SoundFile==0.10.3.post1
+SoundFile
 soupsieve
 SpeechRecognition
 urllib3
