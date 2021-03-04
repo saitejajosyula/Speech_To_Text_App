@@ -11,10 +11,11 @@ matplotlib
 numpy
 requests
 scipy
-SoundFile
+SoundFile==0.10.3.post1
 soupsieve
 SpeechRecognition
 urllib3
 Wave
 wavio
 Werkzeug
+sndfile
